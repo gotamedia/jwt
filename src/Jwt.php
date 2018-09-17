@@ -1,11 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Atoms\Jwt;
 
 use ArrayAccess;
 use DateTime;
 use InvalidArgumentException;
 use RuntimeException;
+use stdClass;
 
 class Jwt
 {
@@ -37,7 +40,7 @@ class Jwt
         string $algorithm = 'HS256',
         $keyId = null,
         array $headers = []
-    ) {
+    ):string {
         $headers = array_merge($headers, [
             'typ' => 'JWT',
             'alg' => $algorithm
@@ -60,10 +63,10 @@ class Jwt
     }
 
     /**
-     * Decodes a JWT string into an array.
+     * Decodes a JWT string into a PHP object.
      *
      * @param  string $jwt
-     * @param  string|resource $key
+     * @param  string|array $key
      * @param  array $allowedAlgorithms
      * @param  string $timestamp
      * @param  int $leeway
@@ -76,7 +79,7 @@ class Jwt
         array $allowedAlgorithms = [],
         $timestamp = null,
         $leeway = 0
-    ) {
+    ): stdClass {
         $timestamp = $timestamp ?? time();
 
         if (empty($key)) {
@@ -245,9 +248,9 @@ class Jwt
      * Decodes a JSON string into a PHP object.
      *
      * @param  string $input
-     * @return object
+     * @return \stdClass
      */
-    private static function jsonDecode(string $input)
+    private static function jsonDecode(string $input): stdClass
     {
         $object = json_decode($input, false, 512, JSON_BIGINT_AS_STRING);
 
