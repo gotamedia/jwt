@@ -40,7 +40,7 @@ class Jwt
         string $algorithm = 'HS256',
         $keyId = null,
         array $headers = []
-    ):string {
+    ): string {
         $headers = array_merge($headers, [
             'typ' => 'JWT',
             'alg' => $algorithm
@@ -68,18 +68,18 @@ class Jwt
      * @param  string $jwt
      * @param  string|array $key
      * @param  array $allowedAlgorithms
-     * @param  string $timestamp
+     * @param  int|null $timestamp
      * @param  int $leeway
-     * @return \stdClass
+     * @return mixed
      * @throws \InvalidArgumentException
      */
     public static function decode(
         string $jwt,
         $key,
         array $allowedAlgorithms = [],
-        $timestamp = null,
-        $leeway = 0
-    ): stdClass {
+        ?int $timestamp = null,
+        int $leeway = 0
+    ) {
         $timestamp = $timestamp ?? time();
 
         if (empty($key)) {
@@ -247,10 +247,10 @@ class Jwt
     /**
      * Decodes a JSON string into a PHP object.
      *
-     * @param  string $input
-     * @return \stdClass
+     * @param string $input
+     * @return mixed
      */
-    private static function jsonDecode(string $input): stdClass
+    private static function jsonDecode(string $input)
     {
         $object = json_decode($input, false, 512, JSON_BIGINT_AS_STRING);
 
