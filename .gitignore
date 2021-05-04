@@ -1,3 +1,14 @@
-vendor
-coverage
-.idea
+# OS specific
+._*
+.DS_Store
+Thumbs.db
+
+# Rush specific
+.env
+.composer/
+.idea/
+.pdepend/
+coverage/
+node_modules/
+vendor/
+var/run/
