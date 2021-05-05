@@ -70,6 +70,11 @@ class Jwt
      * @param int|null $timestamp
      * @param int $leeway
      * @return mixed
+     * @throws \ExpirationTimeException
+     * @throws \InvalidArgumentException
+     * @throws \InvalidSignatureException
+     * @throws \IssuedAtException
+     * @throws \NotBeforeException
      *
      * @SuppressWarnings(PHPMD.CyclomaticComplexity)
      * @SuppressWarnings(PHPMD.NPathComplexity)
@@ -256,6 +261,7 @@ class Jwt
      *
      * @param string $input
      * @return mixed
+     * @throws \RuntimeException
      */
     private function jsonDecode(string $input)
     {
