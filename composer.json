@@ -27,6 +27,6 @@
     "scripts": {
         "test": "phpunit",
         "lint": "phpcs --standard=PSR12 src",
-        "analyze": "phpmd src text phpmd.xml --exclude src/Time/Tests; phan --output-mode text --color --allow-polyfill-parser --no-progress-bar"
+        "analyze": "phpmd src text phpmd.xml; phan --output-mode text --color --allow-polyfill-parser --no-progress-bar"
     }
 }
