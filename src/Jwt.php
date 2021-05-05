@@ -8,14 +8,13 @@ use ArrayAccess;
 use DateTime;
 use InvalidArgumentException;
 use RuntimeException;
-use stdClass;
 
 class Jwt
 {
     /**
      * @var array A list of supported algorithms
      */
-    private static $supportedAlgorithms = [
+    private const SUPPORTED_ALGORITHMS = [
         'HS256' => ['hash_hmac', 'SHA256'],
         'HS512' => ['hash_hmac', 'SHA512'],
         'HS384' => ['hash_hmac', 'SHA384'],
@@ -27,14 +26,14 @@ class Jwt
     /**
      * Converts and signs an array into a JWT string.
      *
-     * @param  array $payload
-     * @param  string|resource $key
-     * @param  string $algorithm
-     * @param  mixed $keyId
-     * @param  array $headers
+     * @param array $payload
+     * @param string|resource $key
+     * @param string $algorithm
+     * @param mixed $keyId
+     * @param array $headers
      * @return string
      */
-    public static function encode(
+    public function encode(
         array $payload,
         $key,
         string $algorithm = 'HS256',
@@ -51,13 +50,13 @@ class Jwt
         }
 
         $segments = [
-            static::base64UrlEncode(static::jsonEncode($headers)),
-            static::base64UrlEncode(static::jsonEncode($payload))
+            $this->base64UrlEncode($this->jsonEncode($headers)),
+            $this->base64UrlEncode($this->jsonEncode($payload))
         ];
 
-        $signature = static::sign(implode('.', $segments), $key, $algorithm);
+        $signature = $this->sign(implode('.', $segments), $key, $algorithm);
 
-        $segments[] = static::base64UrlEncode($signature);
+        $segments[] = $this->base64UrlEncode($signature);
 
         return implode('.', $segments);
     }
@@ -65,25 +64,34 @@ class Jwt
     /**
      * Decodes a JWT string into a PHP object.
      *
-     * @param  string $jwt
-     * @param  string|array $key
-     * @param  array $allowedAlgorithms
-     * @param  int|null $timestamp
-     * @param  int $leeway
+     * @param string $jwt
+     * @param string|array $key
+     * @param array $allowedAlgorithms
+     * @param int|null $timestamp
+     * @param int $leeway
      * @return mixed
+     * @throws \ExpirationTimeException
      * @throws \InvalidArgumentException
+     * @throws \InvalidSignatureException
+     * @throws \IssuedAtException
+     * @throws \NotBeforeException
+     *
+     * @SuppressWarnings(PHPMD.CyclomaticComplexity)
+     * @SuppressWarnings(PHPMD.NPathComplexity)
      */
-    public static function decode(
+    public function decode(
         string $jwt,
         $key,
         array $allowedAlgorithms = [],
         ?int $timestamp = null,
         int $leeway = 0
     ) {
-        $timestamp = $timestamp ?? time();
-
         if (empty($key)) {
             throw new InvalidArgumentException('Invalid key; must not be empty');
+        }
+
+        if (is_null($timestamp)) {
+            $timestamp = time();
         }
 
         $segments = explode('.', $jwt);
@@ -94,20 +102,24 @@ class Jwt
 
         list($encodedHeader, $encodedPayload, $encodedSignature) = $segments;
 
-        if (is_null($header = static::jsonDecode(static::base64UrlDecode($encodedHeader)))) {
+        $header = $this->jsonDecode($this->base64UrlDecode($encodedHeader));
+        $payload = $this->jsonDecode($this->base64UrlDecode($encodedPayload));
+        $signature = $this->base64UrlDecode($encodedSignature);
+
+        if (is_null($header)) {
             throw new InvalidArgumentException('Invalid header encoding');
         }
 
-        if (is_null($payload = static::jsonDecode(static::base64UrlDecode($encodedPayload)))) {
+        if (is_null($payload)) {
             throw new InvalidArgumentException('Invalid payload encoding');
         }
 
-        if (($signature = static::base64UrlDecode($encodedSignature)) === false) {
+        if ($signature === false) {
             throw new InvalidArgumentException('Invalid signature encoding');
         }
 
         /** Check for a valid algorithm */
-        if (!isset($header->alg) || !isset(static::$supportedAlgorithms[$header->alg])) {
+        if (!isset($header->alg) || !isset(self::SUPPORTED_ALGORITHMS[$header->alg])) {
             throw new InvalidArgumentException('Invalid algorithm; empty or not supported');
         }
 
@@ -129,7 +141,7 @@ class Jwt
         }
 
         /** Verify the signature */
-        if (!static::verify("{$encodedHeader}.{$encodedPayload}", $signature, $key, $header->alg)) {
+        if (!$this->verify("{$encodedHeader}.{$encodedPayload}", $signature, $key, $header->alg)) {
             throw new InvalidSignatureException('Invalid signature; verification failed');
         }
 
@@ -160,20 +172,20 @@ class Jwt
     /**
      * Signs a string with a given key and algorithm.
      *
-     * @param  string $message
-     * @param  string|resource $key
-     * @param  string $algorithm
+     * @param string $message
+     * @param string|resource $key
+     * @param string $algorithm
      * @return string
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
      */
-    public static function sign(string $message, $key, string $algorithm): string
+    public function sign(string $message, $key, string $algorithm): string
     {
-        if (!isset(static::$supportedAlgorithms[$algorithm])) {
+        if (!isset(self::SUPPORTED_ALGORITHMS[$algorithm])) {
             throw new InvalidArgumentException('Invalid algorithm; not supported');
         }
 
-        list($function, $algorithmName) = static::$supportedAlgorithms[$algorithm];
+        list($function, $algorithmName) = self::SUPPORTED_ALGORITHMS[$algorithm];
 
         if ($function === 'hash_hmac') {
             return hash_hmac($algorithmName, $message, $key, true);
@@ -193,21 +205,21 @@ class Jwt
     /**
      * Verifies a signature with the message, key and method.
      *
-     * @param  string $message
-     * @param  string $signature
-     * @param  string|resource $key
-     * @param  string $algorithm
+     * @param string $message
+     * @param string $signature
+     * @param string|resource $key
+     * @param string $algorithm
      * @return bool
      * @throws \InvalidArgumentException
      * @throws \RuntimeException
      */
-    private static function verify(string $message, string $signature, $key, string $algorithm): bool
+    private function verify(string $message, string $signature, $key, string $algorithm): bool
     {
-        if (!isset(static::$supportedAlgorithms[$algorithm])) {
+        if (!isset(self::SUPPORTED_ALGORITHMS[$algorithm])) {
             throw new InvalidArgumentException('Invalid algorithm; not supported');
         }
 
-        list($function, $algorithmName) = static::$supportedAlgorithms[$algorithm];
+        list($function, $algorithmName) = self::SUPPORTED_ALGORITHMS[$algorithm];
 
         if ($function === 'openssl') {
             $success = openssl_verify($message, $signature, $key, $algorithmName);
@@ -217,21 +229,21 @@ class Jwt
             }
 
             return (bool)$success;
-        } else {
-            $hash = hash_hmac($algorithmName, $message, $key, true);
-
-            return hash_equals($signature, $hash);
         }
+
+        $hash = hash_hmac($algorithmName, $message, $key, true);
+
+        return hash_equals($signature, $hash);
     }
 
     /**
      * Encodes a object/array into a JSON string.
      *
-     * @param  object|array $input
+     * @param object|array $input
      * @return string
      * @throws \RuntimeException
      */
-    private static function jsonEncode($input): string
+    private function jsonEncode($input): string
     {
         $json = json_encode($input);
 
@@ -249,8 +261,9 @@ class Jwt
      *
      * @param string $input
      * @return mixed
+     * @throws \RuntimeException
      */
-    private static function jsonDecode(string $input)
+    private function jsonDecode(string $input)
     {
         $object = json_decode($input, false, 512, JSON_BIGINT_AS_STRING);
 
@@ -264,10 +277,10 @@ class Jwt
     /**
      * Encodes a string with URL safe Base64.
      *
-     * @param  string $input
+     * @param string $input
      * @return string
      */
-    private static function base64UrlEncode(string $input): string
+    private function base64UrlEncode(string $input): string
     {
         return str_replace('=', '', strtr(base64_encode($input), '+/', '-_'));
     }
@@ -275,10 +288,10 @@ class Jwt
     /**
      * Decodes a string with URL safe Base64.
      *
-     * @param  string $input
+     * @param string $input
      * @return string
      */
-    private static function base64UrlDecode(string $input): string
+    private function base64UrlDecode(string $input): string
     {
         $remainder = strlen($input) % 4;
 
